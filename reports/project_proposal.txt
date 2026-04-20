@@ -1,0 +1,375 @@
+================================================================================
+PROJECT PROPOSAL
+Predicting ATP Grand Slam Match Outcomes Using Pre-Match History
+and Live First-Set Performance
+================================================================================
+STAT 390 | Spring 2026
+================================================================================
+
+
+================================================================================
+1. THE RESEARCH QUESTION
+================================================================================
+
+THE PROBLEM
+-----------
+When two professional tennis players step on court, we can make a prediction
+about who will win based entirely on historical data: their ATP rankings, age,
+head-to-head record, and surface preference. But tennis is a live sport. Once
+the first set is played, we have new, real-time evidence about how both players
+are performing that day -- their first serve percentage, return points won,
+winners, double faults, and break point conversions. These in-match signals
+are far more current than any historical statistic, but they cover a narrower
+window of time.
+
+The core question this project answers is:
+
+    "After the first set of a Grand Slam match is complete, what is the
+     optimal way to combine a player's historical pre-match profile with
+     their live first-set performance to predict who wins the match?"
+
+More specifically, if we define a prediction model as:
+
+    P(A wins) = f(w * first_set_features + (1-w) * pre_match_features)
+
+then we want to find the value of w that minimizes prediction error -- and
+understand whether that optimal weight varies by surface, tournament, or
+match context (e.g., early rounds vs. semifinals).
+
+This is a meaningful problem because it sits at the intersection of two common
+prediction paradigms: static historical modeling (the Vegas pre-match line) and
+dynamic in-game modeling (live betting markets). Understanding how much weight
+the first set deserves relative to history has real implications for sports
+analytics, broadcasting, and betting.
+
+SCOPE
+-----
+For this semester the project will focus on:
+
+  - ATP men's singles Grand Slam matches only (Australian Open, Roland Garros,
+    Wimbledon, US Open), 2011-2023.
+  - Binary classification: predict match winner (not score, not sets).
+  - The first set only as the in-match signal (not set 2 or 3).
+  - Four types of models of increasing complexity:
+      1. Pre-match baseline (historical features only)
+      2. First-set only (in-match features only)
+      3. Combined weighted model (tuning the weight w)
+      4. A learned combination (letting the model discover the optimal weighting
+         through regularization or tree-based feature importance)
+
+The project will not attempt to:
+  - Model real-time point-by-point updating within a set.
+  - Incorporate head-to-head records or player-specific historical surface stats
+    (those would require additional data engineering beyond scope).
+  - Predict score lines, number of sets, or tiebreak outcomes.
+
+SUCCESS CRITERIA
+----------------
+The project will be considered successful if:
+
+  1. Accuracy: The combined model achieves higher test-set accuracy than either
+     the pre-match-only or first-set-only baseline, demonstrating that the
+     combination is genuinely superior.
+
+  2. Calibration: Predicted probabilities are well-calibrated (a match called
+     at 70% confidence should be won by the predicted player ~70% of the time).
+     Measured with a Brier score and calibration curve.
+
+  3. Interpretability: We can clearly state and explain the optimal weight w
+     (or the learned feature importances), and connect that finding back to
+     tennis domain knowledge.
+
+  4. Reproducibility: Every step from raw data download to final model
+     evaluation is scripted and re-runnable with a single command.
+
+Stretch goal: Identify whether the optimal weight differs by surface -- e.g.,
+whether first-set evidence is worth more on grass (where serves dominate and
+momentum shifts are rare) than on clay (where comebacks are more common).
+
+
+================================================================================
+2. YOUR DATA
+================================================================================
+
+SOURCES
+-------
+This project uses two open-source datasets, both maintained by tennis
+statistician Jeff Sackmann on GitHub:
+
+  Source 1 -- Point-by-point match data (primary):
+    Repository: github.com/JeffSackmann/tennis_slam_pointbypoint
+    Content: Every point of most Grand Slam singles matches since 2011,
+    scraped from official tournament websites (IBM Slamtracker 2011-2017,
+    Infosys MatchBeats 2018-present). Each row is one point and includes:
+    serve speed, ace/double fault indicators, winner/unforced error flags,
+    break point indicators, rally length, and serve direction.
+
+  Source 2 -- ATP match metadata (pre-match features):
+    Repository: github.com/JeffSackmann/tennis_atp
+    Content: Match-level ATP tour data from 1968-present. Includes both
+    players' ATP rankings, ranking points, age, height, dominant hand, and
+    tournament context for every recorded match.
+
+ACCESS
+------
+Both datasets are already downloaded and processed. The pipeline is:
+
+  Step 1 (01_download_data.py):
+    Downloads all available singles points files and matches files from
+    tennis_slam_pointbypoint (49 tournament files, 2011-2023) and filters
+    the ATP dataset to Grand Slam matches only.
+
+  Step 2 (02_build_firstset_features.py):
+    Parses the raw point-by-point files to compute first-set aggregate
+    statistics per match: first serve %, points won, aces, double faults,
+    winners, unforced errors, break points faced/saved, and return points won.
+
+  Step 3 (03_join_and_clean.py):
+    Joins the first-set features with ATP pre-match features using a
+    tournament-year-player-name key. Applies a random A/B assignment per
+    row to balance the target variable.
+
+The final model-ready dataset is saved at data/clean/tennis_model_ready.csv.
+
+FORMAT AND SIZE
+---------------
+  - File type: CSV
+  - Final dataset: 3,638 rows x 52 columns
+  - One row = one ATP Grand Slam singles match (first set fully observed)
+  - Coverage: 13 years (2011-2023), 4 Grand Slams, 458 unique players
+  - Target variable: A_won (binary, balanced 50/50 by design)
+
+  Feature groups:
+    Pre-match (11 features): rank_A, rank_B, rank_diff, rank_pts_A/B,
+      age_A/B, age_diff, ht_A/B, ht_diff, surface, hand_A/B
+    First-set (29 features): games won, set margin, serve pts, first serve %,
+      first/second serve won %, break pts faced/saved, return pts won %,
+      aces, double faults, winners, unforced errors, avg rally length,
+      total points won
+
+  Completeness:
+    100% complete: rankings, ages, heights, surface, set score, aces,
+      double faults, winners, unforced errors, return pts won %, target
+    ~16-18% null: first serve % and per-serve-type won % (early tournament
+      years where Slamtracker did not record per-point serve indicators)
+    ~44% null: avg rally length (not available in AO/FO post-2018 format)
+
+
+================================================================================
+3. YOUR APPROACH
+================================================================================
+
+INITIAL EXPLORATION
+-------------------
+Exploratory analysis (04_explore_clean_data.py) has already been completed.
+Key findings that will inform modeling:
+
+  - The set 1 winner goes on to win the match 77.8% of the time overall.
+    This varies by surface: Clay 81.2%, Grass 77.7%, Hard 76.7%.
+    Implication: surface should be included as an interaction term.
+
+  - The higher-ranked player wins 72.9% of matches, confirming that rankings
+    are a strong pre-match signal.
+
+  - The strongest single first-set correlates with the match outcome are:
+    s1_A_won (+0.556), s1_margin (+0.548), s1_A_return_pts_won_pct (+0.436),
+    and s1_A_first_srv_won_pct (+0.323).
+    avg_rally is essentially uncorrelated (r ~ 0), so it will be dropped.
+
+  - First serve % alone (mean 60%) has a weak correlation with the outcome
+    (+0.063). Serving well is less important than winning the points on that
+    first serve, and especially winning points on the opponent's serve (return).
+
+Additional exploration to be completed during modeling:
+  - Year-over-year trend in model accuracy (has tennis become more predictable?)
+  - Upset analysis: when does the model fail and why?
+  - Distribution of the optimal weight w across cross-validation folds
+
+BASELINE MODEL
+--------------
+The absolute simplest benchmark: a logistic regression using only two features:
+
+    P(A wins) = sigmoid(b0 + b1 * rank_diff)
+
+where rank_diff = rank_A - rank_B. This is the "just pick the higher-ranked
+player" model formalized as a probability. It requires no first-set data and
+represents the pre-match betting line equivalent.
+
+Expected accuracy: ~66-68% based on the 72.9% win rate for higher-ranked
+players (some noise because rank_diff is continuous, not a binary flag).
+
+A second baseline adds surface:
+
+    P(A wins) = sigmoid(b0 + b1 * rank_diff + b2 * surface_code)
+
+These two baselines establish what historical information alone can achieve.
+
+ADVANCED MODELS
+---------------
+Models will be built in four progressive stages:
+
+  Stage 1 -- Pre-match logistic regression (baseline, described above)
+    Features: rank_diff, rank_pts_A/B, age_diff, ht_diff, surface, hand codes
+    Purpose: historical-only benchmark
+
+  Stage 2 -- First-set logistic regression
+    Features: s1_margin, s1_A_return_pts_won_pct, s1_A_first_srv_won_pct,
+      s1_A_aces, s1_A_df, s1_A_win, s1_A_ue, s1_A_bp_faced, s1_A_bp_saved_pct
+    Purpose: in-match-only benchmark (upper bound of set-1 information)
+
+  Stage 3 -- Weighted combination (the core research question)
+    Approach A -- Hard weight search:
+      Score(A) = w * score_s1(A) + (1-w) * score_prematch(A)
+      Grid search w from 0 to 1 in steps of 0.05. Evaluate using 5-fold CV.
+      Plot accuracy vs w curve; the peak gives the optimal weight.
+    Approach B -- Ridge logistic regression on all features:
+      Include all pre-match and first-set features together with L2
+      regularization. The learned coefficients implicitly encode the relative
+      weight of each group. Compare the sum of |coefficients| for pre-match
+      features vs. first-set features.
+    Approach C -- Surface-stratified weights:
+      Repeat the grid search separately for Clay, Grass, and Hard.
+      Test whether the optimal w is statistically different across surfaces
+      using a bootstrap confidence interval.
+
+  Stage 4 -- Nonlinear / tree-based models
+    Random Forest and Gradient Boosted Trees (XGBoost) on all features.
+    Use SHAP values to interpret which features drive predictions.
+    Compare against Stage 3 to quantify the gain from nonlinearity.
+
+  Evaluation metrics (same across all stages):
+    - Accuracy (primary): fraction of correctly predicted winners
+    - Brier score: measures probabilistic calibration (lower = better)
+    - ROC-AUC: overall discriminative ability
+    - All evaluated on a held-out test set (2022-2023 matches) and with
+      5-fold cross-validation on the 2011-2021 training set
+
+  Missing data strategy:
+    - For the 16-18% null serve stats: impute with the per-surface-per-year
+      median. Serve percentages are fairly stable within surface/era cohorts.
+    - avg_rally (44% null): drop from all models. It has near-zero correlation
+      with the target and imputing it would be unreliable.
+
+
+================================================================================
+4. THE AI AGENT PLAN (THE KARPATHY FRAMEWORK)
+================================================================================
+
+OVERVIEW OF THE FRAMEWORK
+--------------------------
+Andrej Karpathy's auto-researcher concept describes an AI agent that behaves
+like a research assistant operating in a loop:
+
+    Observe (read data, examine results)
+      --> Think (form a hypothesis or plan)
+        --> Act (write and execute code)
+          --> Observe (read output)
+            --> repeat
+
+The key insight is that the agent is not just a code generator -- it is a
+scientific reasoner that interprets results, identifies what is wrong or
+interesting, and decides the next experiment autonomously. The human sets the
+high-level goal and reviews milestones; the agent handles the implementation
+loop.
+
+HOW THIS PROJECT MAPS TO THE FRAMEWORK
+---------------------------------------
+This project has been built from the beginning inside Claude Code, which serves
+as the AI agent. The mapping to Karpathy's loop is direct:
+
+  GOAL SETTING (human):
+    "Build a model to predict ATP Grand Slam match outcomes by combining
+    pre-match historical features with live first-set statistics, and find
+    the optimal weight between them."
+
+  LOOP ITERATION 1 -- Data sourcing (completed):
+    Observe: No data exists in the project folder.
+    Think:   Identify the best public tennis dataset for this problem.
+             Jeff Sackmann's tennis_slam_pointbypoint has point-by-point data
+             for Grand Slam matches. The tennis_atp repo has pre-match features.
+    Act:     Write 01_download_data.py. Execute. Observe 71,830 rows downloaded.
+    Observe: The old ATP dataset has no per-set statistics. Switch to
+             slam_pointbypoint. Re-execute. All 49 tournament files downloaded.
+
+  LOOP ITERATION 2 -- Feature engineering (completed):
+    Observe: Raw points files have one row per point. The model needs one row
+             per match with set-1 aggregate stats.
+    Think:   Need to aggregate aces, DFs, serve %, BP, return % within set 1
+             per match. Multiple file formats exist (IBM vs. Infosys) that
+             require different parsing logic.
+    Act:     Write 02_build_firstset_features.py with format detection and
+             four fallback methods for extracting set scores and match winners.
+    Observe: Initial run returns 650 matches (winner column is null in metadata).
+    Think:   Must derive winner from set wins in points data, not metadata.
+    Act:     Add get_match_winner() function using set-win counting with
+             3 fallback methods. Re-execute.
+    Observe: 10,377 matches processed. Sanity check: 80.9% of set-1 winners
+             go on to win the match -- matches known tennis statistics.
+
+  LOOP ITERATION 3 -- Data joining and cleaning (completed):
+    Observe: Join between slam_pbp and ATP data returns only 30.8% match rate.
+    Think:   The slam_pbp assigns player1/player2 arbitrarily; a directional
+             name-pair join fails ~50% of the time. Also includes WTA matches.
+    Act:     Switch to order-independent sorted name-pair key. Filter to ATP men
+             only. Re-execute.
+    Observe: 3,638 clean ATP men's matches, 100% complete on core features.
+
+  LOOP ITERATION 4 -- Exploration (completed):
+    Observe: Correlation analysis reveals return_pts_won_pct (r=0.44) and
+             first_srv_won_pct (r=0.32) are the strongest first-set predictors.
+             avg_rally is near-zero correlated. BP saved % has 21% nulls.
+    Think:   Drop avg_rally from modeling features. Impute serve split stats
+             rather than dropping rows. Build surface-stratified weight search.
+
+  UPCOMING ITERATIONS (planned):
+    Iteration 5 -- Baseline models and feature engineering
+    Iteration 6 -- Weight grid search and Stage 3 combination models
+    Iteration 7 -- Tree-based models and SHAP interpretation
+    Iteration 8 -- Error analysis and writeup
+
+THE AGENT'S ROLE IN EACH ITERATION
+------------------------------------
+In each iteration, the agent (Claude Code) is not simply executing instructions.
+It is:
+
+  1. Reading and interpreting output:
+     When a script produces unexpected results (e.g., 650 matches instead of
+     ~3,000), the agent reads the output, identifies the root cause (null
+     winner column), and proposes a fix before asking the human.
+
+  2. Making implementation decisions:
+     When the IBM and Infosys data formats diverge, the agent designs a
+     multi-fallback parsing strategy without being asked, because it reasons
+     that a single parsing method will silently fail on half the data.
+
+  3. Validating with domain knowledge:
+     The agent uses tennis knowledge (e.g., "set-1 winner should go on to win
+     ~78-82% of matches") as a sanity check on processed data. When the number
+     comes out at 80.9%, it flags this as confirming the data is correct.
+
+  4. Proposing the next step:
+     At the end of each iteration, the agent summarizes what was learned and
+     what the logical next experiment is, rather than waiting for instructions.
+
+HUMAN OVERSIGHT CHECKPOINTS
+-----------------------------
+While the agent operates autonomously within iterations, the human reviews
+and approves at four checkpoints:
+
+  Checkpoint 1: Dataset selection -- human confirmed switching from ATP-only
+    data to slam_pointbypoint after the agent identified the limitation.
+  Checkpoint 2: Clean dataset review -- human confirmed the final schema and
+    null-rate profile before proceeding to modeling.
+  Checkpoint 3: Model results -- human will review accuracy/AUC outputs and
+    decide whether to proceed to Stage 4 or iterate on features.
+  Checkpoint 4: Final report -- human reviews the agent's written interpretation
+    of results before submission.
+
+This division of labor -- agent handles implementation loops, human sets goals
+and reviews milestones -- directly instantiates Karpathy's framework: the
+human provides the reward signal (approval or course-correction), while the
+agent operates autonomously within each episode.
+
+================================================================================
+END OF PROPOSAL
+================================================================================
