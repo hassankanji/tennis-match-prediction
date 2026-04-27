@@ -24,7 +24,7 @@ STAT 390 | Spring 2026 | GitHub: https://github.com/hassankanji/tennis-match-pre
 |------|-------------|--------|
 | 1 | Project charter, research question, AutoResearch diagram, risk list, repo structure | ✅ Done — `notebooks/week1_charter.ipynb` |
 | 2 | Data pipeline complete, EDA done, check-in notebook | ✅ Done — `notebooks/week2_checkin.ipynb` |
-| 3 | Baseline models: Stage 1 (pre-match LR) + Stage 2 (first-set LR) | ⬜ Next |
+| 3 | AutoResearch setup, program.md, 5 dry-run experiments, reflection | ✅ Done — `notebooks/week3_autoresearch.ipynb` |
 | 4 | Weight grid search (Stage 3), ridge combined model | ⬜ |
 | 5 | Surface-stratified weight analysis | ⬜ |
 | 6 | Tree-based models (Random Forest, XGBoost) + SHAP | ⬜ |
@@ -32,6 +32,25 @@ STAT 390 | Spring 2026 | GitHub: https://github.com/hassankanji/tennis-match-pre
 | 8 | Final writeup, calibration curves, full results notebook | ⬜ |
 
 **When the user comes back each week:** update this table, create the next notebook, commit and push to GitHub.
+
+## AutoResearch Infrastructure (added Week 3)
+
+- `program.md` — agent specification (goal, constraints, loop rules, stopping criteria)
+- `src/model.py` — THE ONLY FILE THE AGENT MODIFIES (contains `build_model()` + `FEATURES`)
+- `src/run.py` — fixed experiment runner, call with `python src/run.py "<description>"`
+- `src/evaluate.py` — fixed eval harness, enforces train/val/test split, DO NOT MODIFY
+- `results.tsv` — experiment log (gitignored, appended automatically by run.py)
+
+**Metric:** `val_brier` (Brier score, lower = better). Val set = 2021 only (n=236). Test set = 2022–2023 (n=458), LOCKED until final eval.
+
+**Dry-run results so far:**
+| Experiment | val_brier | val_acc | val_auc | Status |
+|---|---|---|---|---|
+| Baseline pre-match LR | 0.2055 | 69.9% | 0.744 | keep |
+| First-set only LR | 0.1838 | 74.6% | 0.786 | keep |
+| Combined LR C=1.0 | 0.1694 | 75.4% | 0.827 | keep |
+| Combined LR C=0.1 | 0.1690 | 75.4% | 0.828 | keep |
+| Random Forest 100 trees | **0.1681** | **75.8%** | **0.829** | keep (best) |
 
 ---
 

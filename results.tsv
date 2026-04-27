@@ -1,0 +1,6 @@
+commit	val_brier	val_accuracy	val_auc	status	description
+dryrun1	0.205534	0.699153	0.743612	keep	baseline: pre-match LR only (rank_diff age_diff surface C=1.0)
+dryrun2	0.183800	0.745763	0.786400	keep	first-set only LR (s1_margin s1_A_won return_pts_won_pct srv_won_pct aces df ue)
+dryrun3	0.169400	0.754237	0.827100	keep	combined all features LR C=1.0 — best so far
+dryrun4	0.169000	0.754237	0.827600	keep	combined LR C=0.1 stronger regularization — marginal gain
+dryrun5	0.168100	0.758475	0.828800	keep	random forest 100 trees all features — best so far
