@@ -1,0 +1,12 @@
+Week,Run,Experiment,Family,N_Features,val_brier,val_accuracy,val_auc,Delta_brier,Status,Decision_Basis
+3,1,baseline: pre-match LR only (rank_diff age_diff surface C=1.0),lr,,0.205534,0.699153,0.743612,,keep,human-directed (week 3)
+3,2,first-set only LR (s1_margin s1_A_won return_pts_won_pct srv_won_pct aces df ue),lr,,0.1838,0.745763,0.7864,,keep,human-directed (week 3)
+3,3,combined all features LR C=1.0 — best so far,lr,,0.1694,0.754237,0.8271,,keep,human-directed (week 3)
+3,4,combined LR C=0.1 stronger regularization — marginal gain,lr,,0.169,0.754237,0.8276,,keep,human-directed (week 3)
+3,5,random forest 100 trees all features — best so far,rf,,0.1681,0.758475,0.8288,,keep,human-directed (week 3)
+4,6,RF n_estimators=200 all features,RF,34.0,0.167367,0.775424,0.829257,-0.000733,keep,agent-directed (v2 autonomous)
+4,7,RF max_depth=10 all features,RF,34.0,0.164813,0.766949,0.833911,-0.002554,keep,agent-directed (v2 autonomous)
+4,8,RF max_depth=5 all features,RF,34.0,0.17159,0.766949,0.820924,0.006777,discard,agent-directed (v2 autonomous)
+4,9,RF min_samples_leaf=5 all features,RF,34.0,0.166207,0.766949,0.831025,0.001394,discard,agent-directed (v2 autonomous)
+4,10,RF prematch features only (research axis),RF,8.0,0.216062,0.673729,0.728319,0.051249,discard,agent-directed (v2 autonomous)
+4,11,GBM n=100 lr=0.05 all features,GBM,34.0,0.174657,0.728814,0.822511,0.009844,discard,agent-directed (v2 autonomous)
