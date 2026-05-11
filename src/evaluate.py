@@ -78,6 +78,34 @@ def evaluate(model, features):
     }
 
 
+def evaluate_with_train(model, features):
+    """
+    Like evaluate() but also returns train-set metrics.
+    Added Week 5 per instructor feedback: separate train/val scores to detect overfitting.
+    """
+    train, val, _ = _load_splits()
+    X_train, y_train, X_val, y_val = _prep(train, val, features)
+    model.fit(X_train, y_train)
+
+    train_proba = model.predict_proba(X_train)[:, 1]
+    train_pred  = (train_proba >= 0.5).astype(int)
+    val_proba   = model.predict_proba(X_val)[:, 1]
+    val_pred    = (val_proba >= 0.5).astype(int)
+
+    return {
+        'train_brier'   : round(brier_score_loss(y_train, train_proba), 6),
+        'train_accuracy': round(accuracy_score(y_train, train_pred), 6),
+        'train_auc'     : round(roc_auc_score(y_train, train_proba), 6),
+        'val_brier'     : round(brier_score_loss(y_val, val_proba), 6),
+        'val_accuracy'  : round(accuracy_score(y_val, val_pred), 6),
+        'val_auc'       : round(roc_auc_score(y_val, val_proba), 6),
+        'n_train'       : len(y_train),
+        'n_val'         : len(y_val),
+        'overfit_gap'   : round(
+            brier_score_loss(y_val, val_proba) - brier_score_loss(y_train, train_proba), 6),
+    }
+
+
 def evaluate_test(model, features):
     """
     FINAL EVALUATION ONLY — called once at end of project.

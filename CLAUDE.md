@@ -18,15 +18,15 @@ STAT 390 | Spring 2026 | GitHub: https://github.com/hassankanji/tennis-match-pre
 
 ## Current Status
 
-**Week completed: 2 of 8**
+**Week completed: 5 of 8**
 
 | Week | Deliverable | Status |
 |------|-------------|--------|
 | 1 | Project charter, research question, AutoResearch diagram, risk list, repo structure | ✅ Done — `notebooks/week1_charter.ipynb` |
 | 2 | Data pipeline complete, EDA done, check-in notebook | ✅ Done — `notebooks/week2_checkin.ipynb` |
-| 3 | AutoResearch setup, program.md, 5 dry-run experiments, reflection | ✅ Done — `notebooks/week3_autoresearch.ipynb` |
-| 4 | Weight grid search (Stage 3), ridge combined model | ⬜ |
-| 5 | Surface-stratified weight analysis | ⬜ |
+| 3 | AutoResearch setup, 5 dry-run experiments, reflection | ✅ Done — `notebooks/week3_autoresearch.ipynb` |
+| 4 | Autonomous agent v2, 6 experiments, best val_brier=0.1648 | ✅ Done — `notebooks/week4_autoresearch.ipynb` |
+| 5 | Agent v3: 3 iterations, feature selection, n_est search, 5 deliverables | ✅ Done — `notebooks/week5_autoresearch.ipynb` |
 | 6 | Tree-based models (Random Forest, XGBoost) + SHAP | ⬜ |
 | 7 | Error analysis, upset analysis, year-over-year trends | ⬜ |
 | 8 | Final writeup, calibration curves, full results notebook | ⬜ |
