@@ -27,7 +27,7 @@ STAT 390 | Spring 2026 | GitHub: https://github.com/hassankanji/tennis-match-pre
 | 3 | AutoResearch setup, 5 dry-run experiments, reflection | ✅ Done — `notebooks/week3_autoresearch.ipynb` |
 | 4 | Autonomous agent v2, 6 experiments, best val_brier=0.1648 | ✅ Done — `notebooks/week4_autoresearch.ipynb` |
 | 5 | Agent v3: 3 iterations, feature selection, n_est search, 5 deliverables | ✅ Done — `notebooks/week5_autoresearch.ipynb` |
-| 6 | Tree-based models (Random Forest, XGBoost) + SHAP | ⬜ |
+| 6 | Ablation study, scope lock, prove RF(n=100,depth=10) is champion | ✅ Done — `notebooks/week6_ablation.ipynb` |
 | 7 | Error analysis, upset analysis, year-over-year trends | ⬜ |
 | 8 | Final writeup, calibration curves, full results notebook | ⬜ |
 
